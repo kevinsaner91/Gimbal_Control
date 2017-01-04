@@ -1,0 +1,122 @@
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+
+\documentclass[12pt]{article} % Default font size is 12pt, it can be changed here
+
+\usepackage{geometry}
+\geometry{left=22mm,right=22mm, top=30mm, bottom=25mm}
+\usepackage{setspace} 
+\usepackage{hyperref}
+\usepackage[ngerman]{cleveref}
+
+\usepackage{color,soul}
+
+\usepackage{subfigure}
+
+
+\usepackage{eurosym}
+
+\usepackage{hhline,float}
+
+\usepackage{fancyhdr}
+
+\usepackage{german}
+
+\usepackage{pdflscape}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+
+\usepackage{longtable}
+ 
+\usepackage{geometry} % Required to change the page size to A4
+\geometry{a4paper} % Set the page size to be A4 as opposed to the default US Letter
+
+\usepackage{graphicx} % Required for including pictures
+
+\usepackage{booktabs}
+
+\usepackage{float} % Allows putting an [H] in \begin{figure} to specify the exact location of the figure
+\usepackage{wrapfig} % Allows in-line images such as the example fish picture
+
+
+
+\linespread{1.2} % Line spacing
+
+%\setlength\parindent{0pt} % Uncomment to remove all indentation from paragraphs
+
+\graphicspath{{Pictures/}} % Specifies the directory where pictures are stored
+
+
+
+\begin{document}
+	
+	\begin{titlepage}
+		
+		\newcommand{\HRule}{\rule{\linewidth}{0.5mm}} % Defines a new command for the horizontal lines, change thickness here
+		
+		\centering % Center everything on the page
+		
+		\begin{figure}[h] 
+			\centering
+			\includegraphics[width=.4\textwidth]{Logo-FHNW}
+		\end{figure}
+		
+		\textsc{\Large Zwischenbericht}\\[0.5cm] % Major heading such as course name
+		\begin{doublespace}
+			\HRule \\[1cm]
+			{ \huge \bfseries Datenübertragung mit dem Pixhawk über die UART-Schnittstelle }\\[1cm] % Title of your document
+			\HRule \\[1cm]
+		\end{doublespace}
+
+		{\large 17. Oktober 2016}\\[1cm] % Date, change the \today to a set date if you want to be precise
+		
+		{\large Saner Kevin}\\[1cm]
+		{\large Institut für Automation}
+		%\includegraphics{Logo}\\[1cm] % Include a department/university logo - this will require the graphicx package
+		
+		\vfill % Fill the rest of the page with whitespace
+		
+	\end{titlepage}
+	
+	\pagenumbering{arabic}
+	\setcounter{page}{1}
+	\pagestyle{fancy}
+	\lfoot{18.10.2016} %left Foot
+	\cfoot{\em Projekt FindMine} %Center Foot
+	\rfoot{\thepage}
+	
+	\section{Einleitung}
+	Die Antennen zum Suchen der Minen sollen mit einer Lagenregelung versehen werden, dazu wird auf ein Gimbal-System gesetzt. Die Konfiguration der Lagenregelung soll dabei vor dem Flug erfolgen. Das heisst, dass während dem Flug keine Änderungen vorgenommen werden müssen, jedoch soll die Winkel der Gimbal-Regelung überwacht werden, damit man sie allenfalls in das Postprocessing miteinbeziehen kann. Die im folgenden beschriebene Software, lässt also folglich nur Lese- und keine Schreibprozesse zu.  
+
+	\begin{description}
+		\item[Voraussetzungen:]~\par
+		\begin{itemize}
+			\item Ubuntu Version 14.04 oder ähnlich
+			\item QGroundControl unter Linux
+			\item Pixhawk inkl. sämtlicher benötigter Peripherie
+			\item 2 x FTDI-Kabel 3.3V
+			\item Toolchain des Single Board Computer zum Cross-Kompilieren
+		\end{itemize}
+	\end{description}
+	
+
+	
+	
+
+\newpage
+\renewcommand\refname{Literaturverzeichnis}
+\begin{thebibliography}{99} % Bibliography - this is intentionally simple in this template
+	\raggedright
+	
+	\bibitem{Prosys}
+	Prosys OPC UA Java SDK:
+	\newblock {\em Preisliste}
+	\newblock [online] Available at: https://downloads.prosysopc.com/opcua/Prosys\_OPC\_UA\_Java\_SDK\_Price\_List.pdf [Zugriff am 21.06.2016]
+
+\end{thebibliography}
+
+	
+\end{document}
