@@ -16,24 +16,27 @@ using namespace std;
 #define SBGC_H_
 
 class SBGC {
+
 public:
 	struct real_time_data {
-		int16_t ACC_DATA_ROLL;
-		int16_t GYRO_DATA_ROLL;
-		int16_t ACC_DATA_PITCH;
-		int16_t GYRO_DATA_PITCH;
-		int16_t ACC_DATA_YAW;
-		int16_t GYRO_DATA_YAW;
+		int16_t ACC_DATA_X;
+		int16_t GYRO_DATA_X;
+		int16_t ACC_DATA_Z;
+		int16_t GYRO_DATA_Z;
+		int16_t ACC_DATA_Y;
+		int16_t GYRO_DATA_Y;
 		uint16_t SERIAL_ERROR_COUNT;
 		string SYSTEM_ERROR;
 		string SYSTEM_SUB_ERROR;
 		uint32_t RESERVED;
+		//the RC input data is not verified yet
 		int16_t RC_ROLL;
 		int16_t RC_PITCH;
 		int16_t RC_YAW;
 		int16_t RC_CMD;
 		int16_t EXT_FC_ROLL;
 		int16_t EXT_FC_PITCH;
+
 		int16_t ANGLE_ROLL;
 		int16_t ANGLE_PITCH;
 		int16_t ANGLE_YAW;
@@ -63,12 +66,16 @@ public:
 
 	real_time_data result(char msg[], Serial serial, int counter);
 
+	void print(SBGC::real_time_data Real_Time_Data);
+
 private:
 
-	int16_t _readInt(char x, char y);
-	uint16_t _readUInt(char x, char y);
+	int16_t _readInt(uint8_t x, uint8_t y);
+	uint16_t _readUInt(uint8_t x, uint8_t y);
 	string _sys_error(uint16_t errors);
 	string _sub_error(uint8_t suberror);
+	uint32_t _readByteArr(char x, char y, char z);
+
 };
 
 #endif /* SBGC_H_ */

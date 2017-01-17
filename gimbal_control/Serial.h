@@ -62,9 +62,9 @@ private:
 	bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
 	int  _read_port();
 	int _write_port(char *debugbuf, unsigned len);
-	int _validate();
+	int _validate(int result);
 	int _header_checksum(char cmd_id, char data_size);
-	int _body_checksum();
+	int _body_checksum(int result);
 
 };
 

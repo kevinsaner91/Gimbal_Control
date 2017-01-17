@@ -25,14 +25,9 @@ int main(){
 		if(bytesWritten == 5){
 			printf("Bytes written: %i\n\n", bytesWritten);
 		}else{
-			printf("Error occurred writing bytes\n\n");
+			printf("Error occurred writing bytes\n");
 		}
-
-		usleep(50);
-
-
-
-		//
+		usleep(200);
 		if(serial.read_message()){
 			char msg[serial.result];
 			int counter = serial.result;
@@ -41,11 +36,10 @@ int main(){
 				msg[i] = serial.msg[i];
 				serial.msg[i] = 0;
 			}
+
 			printf("\n");
 			Real_Time_Data = sbgc.result(msg, serial, counter);
-			printf("The received data is: %i :: %i :: %i\n",Real_Time_Data.ACC_DATA_PITCH,
-			Real_Time_Data.ACC_DATA_ROLL,
-			Real_Time_Data.ACC_DATA_YAW);
+			printf("ACC-Sensor data: %i :: %i :: %i :: %i :: %i :: %i", Real_Time_Data.RC_ROLL, Real_Time_Data.RC_PITCH, Real_Time_Data.RC_YAW, Real_Time_Data.RC_CMD, Real_Time_Data.EXT_FC_ROLL, Real_Time_Data.EXT_FC_PITCH);
 			printf("\n");
 			cout << Real_Time_Data.SYSTEM_ERROR;
 			cout << Real_Time_Data.SYSTEM_SUB_ERROR;
@@ -56,4 +50,6 @@ int main(){
 	printf("\n");
 	serial.stop();
 
+
 }
+

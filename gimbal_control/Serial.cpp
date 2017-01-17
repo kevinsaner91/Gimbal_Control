@@ -6,6 +6,7 @@
  */
 
 #include "Serial.h"
+#include <stdint.h>
 
 
 Serial::Serial(const char *uart_name_, int baudrate_) {
@@ -59,23 +60,24 @@ int Serial::read_message() {
 	// this function locks the port during read
 	result = _read_port();
 
-	if(!_validate()){
-		result = _validate();
+	int validate = _validate(result);
+	if(!validate){
+		result = validate;
 	}
 	//error handling
 	switch(result)
 	{
 		case 0:
-			printf("No Bytes to read available");
+			printf("No Bytes to read available\n");
 			break;
 		case -1:
-			printf("The header checksum was incorrect");
+			printf("The header checksum was incorrect\n");
 			break;
 		case -2:
-			printf("The body checksum was incorrect");
+			printf("The body checksum was incorrect\n");
 			break;
 		case -3:
-			printf("The received data was not in the correct format");
+			printf("The received data was not in the correct format\n");
 			break;
 		default:
 			msgReceived = true;
@@ -418,11 +420,11 @@ void Serial::delay(){
 // ------------------------------------------------------------------------------
 //   Validates whether the response has the correct format
 // ------------------------------------------------------------------------------
-int Serial::_validate() {
+int Serial::_validate(int result) {
 	if (msg[0] == 0x3E) {
 		int i = 1;
 		bool hcs = _header_checksum(msg[1], msg[2]) == msg[3] ? true : false;
-		bool bcs = _body_checksum();
+		bool bcs = _body_checksum(result);
 		if (!hcs) {
 			i = -1;
 		}
@@ -446,8 +448,11 @@ int Serial::_header_checksum(char cmd_id, char data_size){
 
 // ------------------------------------------------------------------------------
 //   Helper function - Checks the body checksum
+//	 if you dont understand this, you should be flipping burgers instead
 // ------------------------------------------------------------------------------
-int Serial::_body_checksum(){
-	return result == msg[56] ? true : false;
+int Serial::_body_checksum(int result){
+	int lengthOfHeader = sizeof(uint32_t);
+	int checksum = msg[2] + lengthOfHeader;
+	return checksum == result ? true : false;
 }
 
