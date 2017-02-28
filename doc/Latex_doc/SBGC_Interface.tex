@@ -64,12 +64,14 @@
 			\includegraphics[width=.4\textwidth]{Logo-FHNW}
 		\end{figure}
 		
-		\textsc{\Large Zwischenbericht}\\[0.5cm] % Major heading such as course name
+		\textsc{\Large Dokumentation}\\[0.5cm] % Major heading such as course name
 		\begin{doublespace}
 			\HRule \\[1cm]
-			{ \huge \bfseries Datenübertragung mit dem Pixhawk über die UART-Schnittstelle }\\[1cm] % Title of your document
+			{ \huge \bfseries Datenübertragung vom SBGC zum SBC}\\[1cm] % Title of your document
 			\HRule \\[1cm]
 		\end{doublespace}
+
+		{\large \textbf{Serielle Kommunikation von Phytec-Recher und Simple Brushless Gimbal Controller}}\\[1cm] % Date, change the \today to a set 
 
 		{\large 17. Oktober 2016}\\[1cm] % Date, change the \today to a set date if you want to be precise
 		
@@ -95,26 +97,140 @@
 		\item[Voraussetzungen:]~\par
 		\begin{itemize}
 			\item Ubuntu Version 14.04 oder ähnlich
-			\item QGroundControl unter Linux
-			\item Pixhawk inkl. sämtlicher benötigter Peripherie
-			\item 2 x FTDI-Kabel 3.3V
+			\item SimpleBG 32-bit Extended controller
+			\item USB-Kabel (Typ-A - Mini-B)
 			\item Toolchain des Single Board Computer zum Cross-Kompilieren
+			\item Level shifter Low-To-High (bidirektional)
+			\item optional: 1 x FTDI-Kabel 5V
+			\item optional: SimpleBGC GUI	
 		\end{itemize}
 	\end{description}
 	
 
+	\section{Ziel}
+	Das Ziel besteht darin, mithilfe einer Software, Steuerkommandos an den SBG-Controller zu senden, der dann mit den entsprechenden Daten antwortet. Dabei interessieren lediglich die aktuellen Daten (Real Time Data) des Controllers. Die Konfiguration oder ähnliches soll also mit der erwähnten Software weder gelesen noch geändert werden können. Somit wurde die Software dahingehend entwickelt, dass das Steuerkommando periodisch gesendet wird aber immer das Selbe bleibt.
 	
+	\subsection{Software-Konzept}
+	Die Software besteht aus drei Modulen (Klassen). Das erste Modul ist zuständig für die serielle Kommunikation, dazu gehört der Verbsingaufbau der gewählten Schnittstelle, das Lesen sowie das Schreiben von der Schnittstelle.
+	Das zweite Modul dient zum interpretieren der erhaltenen Rohdaten. In erster Linie werden damit die Winkel des Controllers sowie der externen IMU (\href{https://de.wikipedia.org/wiki/Inertiale_Messeinheit}{inertial measurement unit}) ausgewertet. Weiter werden natürlich auch die restlichen vom Controller erhaltenen Daten ausgewertet. Dazu gehören unter anderen Fehlermeldungen oder die Batteriespannung.
+	Das dritte Modul, dient momentan lediglich dazu, die gelesenen Daten in ein CSV-File zu schreiben.\\
+	Die Klassen und deren Methoden werden dann in der Main-Methode initialisiert und aufgerufen.
 	
+	\subsection{Programmablauf}
+	Der Programmablauf sieht wie folgt aus:
+	
+	\begin{description}
+		\item[Zyklischer Programmablauf:]~\par
+		\begin{itemize}
+			\item Initialisieren
+			\item Bestimmen der Zykluszeit
+			\item Abfragen der IMU-Daten
+			\item Lesen der Antwort
+			\item Validieren der Daten
+			\item Interpretieren der Daten
+			\item Schreiben ins CSV-File	
+		\end{itemize}
+	\end{description}
+	
+	\subsection{Serielle Schnittstelle}
+	Die Klasse "`Serial"' dient dazu zuerst den gewünschten Port mit der entsprechenden Konfiguration zu initialisieren. Diese Konfiguration ist momentan fest programmiert. Die Klasse ist jedoch dafür vorbereitet, dass die Konfiguration beispielsweise als Parameter übergeben werden könnte.
+	
+		\begin{description}
+			\item[Aktuelle Konfiguration:]~\par
+			\begin{itemize}
+				\item Baudrate: 115200
+				\item 8 Data Bits
+				\item No Parity Bit
+				\item 1 Stop Bit
+				\item kurz: 115200/8-N-1	
+			\end{itemize}
+		\end{description}
+	\noindent
+	Die Baudrate entspricht dabei dem Standard des SBG-Controllers. Die Baudrate des Controllers kann falls gewünscht über das GUI geändert werden. Dies ist jedoch nicht empfehlenswert.\\
+	\\
+	Weiter werden die erhaltenen Daten nach dem lesen bereits hier validiert. Dabei wird die Header-Checksumme sowie auch die Body-Checksumme überprüft. Stimmen die Daten nicht mit den erwarteten Werten überein, wird eine Fehlermeldung ausgegeben.
+	
+	\subsubsection{Request}
+	Um vom Gimbal-Controller die gewünschten "`Real-Time-Daten"' zu erhalten muss zuerst eine entsprechende Anfrage (Request) gesendet werden. Wie die Anfrage zusammengestellt werden kann, kann ebenfalls den Spezifikationen (\href{https://github.com/kevinsaner91/Gimbal\_Control/blob/master/doc/SBGC\_doc/SimpleBGC\_2\_6\_Serial\_Protocol\_Specification\%20(1).pdf}{Protocol Specifications}) entnommen werden. Um die aktuellen Winkel- wie auch IMU-Daten zu erhalten setzt sich die Anfrage wie folgt zusammen:
 
+	\begin{description}
+	\item[Request:]~\par
+	\begin{tabular}{llll}
+		\textbf{Index} & \textbf{Name} & \textbf{Hex}& \textbf{Dec/UTF8}\\ \toprule[1.5pt]
+		[0] &Character:& 0x3E & >\\ \hline
+		[1] &Command ID:& 0x17& 23\\ \hline
+		[2] &Data Size:& 0x00& 0\\ \hline
+		[3] &Header Checksum: & (Command ID + Data Size)\% 256\\ \hline
+		[4] &Data: & 0x00& 0\\ \\
+		\end{tabular}
+	\end{description}
+	
+	\noindent
+	Die aufgeführten Zeichen können dann im hexadezimalen Format einem "`char"'-Array übergeben werden, und können so auf den ausgewählten Port geschrieben werden
+	
+	\subsubsection{Response}\label{response}
+	Wird dem Gimbal-Controller eine Anfrage in korrektem Format gesendet, sendet der Controller eine entsprechende Antwort. Die Antwort ist ebenfalls wieder ein "`char"'-Array, und setzt sich, falls in korrektem Format, wie folgt zusammen. hjhj
+		
+	\begin{description}
+		\item[Response:]~\par
+		\begin{tabular}{llll}
+			\textbf{Index} & \textbf{Name} & \textbf{Hex}& \textbf{Dec/UTF8}\\ \toprule[1.5pt]
+			[0] &	Character:& 0x3E & >\\ \hline
+			[1] & 	Command ID:& 0x17& 23\\ \hline
+			[2] &	Data Size:& 0x00& 0\\ \hline
+			[3] &	Header Checksum: & (Command ID + Data Size)\% 256\\ \hline
+			[4...66] &Data: & & \\ \hline
+			[67] & 	Body Checksum: & &\\ \\
+		\end{tabular}
+	\end{description}
+		
+	\noindent
+	Das somit erhalten "``char"'-Array wird sogleich validiert. Falls die verifiziert werden können, sprich das Format mit dem Erwartungswert übereinstimmt, wird das Array der Klasse "`SBGC"' übergeben.
+	
+	\subsubsection{Deadlock}
+	Solange auf jede Anfrage eine Antwort des Controllers kommt, funktioniert das Programm fehlerlos. Geht aus irgendeinem Grund jedoch eine Antwort verloren, zum Beispiel weil nicht gesendet oder nicht detektiert wurde, gerät das Programm in einen Deadlock. Um diesen zu verhindern wird der serielle Port neu initialisiert. Um dabei nachvollziehen zu können wie oft die Verbindung abbricht werden drei Nullen in das File "`ang.csv"' geschrieben. Danach beginnt der Programmablauf wieder von vorne, das heisst es wird wieder eine Anfrage gesendet. Der Programmablauf weist somit also ein paar Gemeinsamkeiten zum UDP-Protokoll auf, denn dem Programm ist es weitgehend egal ob eine Antwort des Controllers gesendet wird. Kommt vom Controller keine Antwort wird einfach die nächste Anfrage gesendet.  
+	
+	\subsection{Interpretation}
+	Die Klasse "`SBGC"' wertet die empfangenen Daten aus. Die Daten sind zuerst in einem Array enthalten. Diese Werte können nun mithilfe der Protokollspezifikationen (\href{https://github.com/kevinsaner91/Gimbal\_Control/blob/master/doc/SBGC\_doc/SimpleBGC\_2\_6\_Serial\_Protocol\_Specification\%20(1).pdf}{Protocol Specifications}) entsprechend interpretiert und den entsprechenden Parametern zugeordnet werden. Die Werte des Arrays entsprechen dabei jeweils einem Byte. Die Parameter, die in den Spezifikationen als 2 Byte lang bezeichnet werden, setzen sich dabei jeweils aus zwei Werten des Array zusammen. Dabei ist es wichtig, dass jeweils der zweite Wert vor den ersten geschoben (Shift-Operation) wird um den korrekten Wert zu erhalten.\\
+	\\
+	\textbf{Beispiel:}
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[scale=0.6]{shift}
+		\caption{Shift-Operation}
+		\label{2}
+	\end{figure} 
+	
+	\noindent	
+	Wie sich sämtliche Werte genau zusammensetzen kann den Spezifikationen entnommen werden. Schlussendlich werden die jeweiligen Werte in deren korrekten Einheiten den Variablen eines Structs zugewiesen.\\
+	\\
+	Die wichtigsten Daten sind dabei die Winkel, welche in den Radaralgorithmus einbezogen werden sollen. Die Winkel können dabei von beiden Sensoren (IMUs) gelesen werden, einerseits vom Board (Frame), andererseits von der externen IMU. Da die externe IMU die Winkel relativ zum Boden angibt, sollten in erster Linie diese berücksichtigt werden.\\
+	\\
+	\textbf{TODO} Die Software gibt momentan die Winkeldaten des SBGC auf der Konsole aus, dabei fällt auf, dass diese nicht immer korrekt sind und manchmal stark von den effektiven Werten abweichen. Dieses Verhalten kann jedoch nur beobachtet werden, wenn die Auswertung über UART geschieht. Wird hingegen das USB-Kabel eingesetzt, sind die Werte immer korrekt. Beim Untersuchen der Fehlerquelle zeigte sich, dass der Controller die Anfrage (Request) korrekt beantwortet (siehe S. \pageref{response}). Die Daten werden somit entweder nicht korrekt in den Buffer aufgenommen oder bei der Verarbeitung geht etwas schief.\\
+	\\
+	\textbf{Lösungsansatz}
+	Das Problem sollte weiter untersucht werden, damit die Fehlerquelle eliminiert werden kann. Alternativ kann durch berechnen der Checksumme überprüft werden welche Daten korrekt sind und welche korrumpiert sind. Somit könnten die Fehlerhaften Daten einfach verworfen werden.
+	
+	\subsection{Write-To-File}
+	Die erhaltenen Daten werden schliesslich in ein CSV-File geschrieben. Dabei werden zwei Files erstellt, eines enthält die Winkel, welche ins Post-Processing einbezogen werden sollen, das andere enthält Statusmeldungen wie zum Beispiel, ob Fehler aufgetreten sind.\\
+	\\
+	Die Winkeldaten werden ausserdem mit einem Zeitstempel versehen. Dieser Zeitstempel stammt vom SBC, und wird während des Schreibprozesses erstellt. Somit stellt sich eine Verzögerung vom Lesen des Gimbal-Controllers bis zum Schreiben des tatsächlichen Zeitstempels ein. Wie gross diese Verzögerung momentan ist, ist nicht bekannt. Sollte sich jedoch herausstellen, dass dies ein Problem ist, muss der Zeitstempel an anderer Stelle im Programm abgerufen werden.\\
+	\\
+	Die restlichen Daten der IMU werden ebenfalls zyklisch in ein File geschrieben, aus Performancegründen werden diese Daten jedoch nur in jedem fünfzigsten Zyklus im CSV-File abgelegt. Dieses File ist vor allem wichtig um sicherzustellen, dass während des Fluges keine Fehler aufgetreten sind.
+	
+	\section{Level-shifter}
+	Der Phytec SBC liefert an der UART-Schnittstelle lediglich 3.3V, der SBGC gibt jedoch nur auf 5V Signale eine Antwort. Deshalb muss einem Level-Shifter das Signal nach oben gezogen werden. Unter Umständen reicht es aus lediglich die Frage (Request auf Rx) von 3.3V auf 5V zu transformieren da Tx auf dem SBGC lediglich 3.3V Spannung aufweist.\\
+	\\
+	\textbf{TODO}
+	Welche Schaltung genau eingesetzt wird muss noch evaluiert werden. Es stehen bereits Muster zur Verfügung. Ebenfalls ist noch klar wie ganze Verkabelung aussehen wird. Wurde der Level-Shifter erfolgreich eruiert und getestet wird die Schaltung zusammen mit dem Schaltregler und dem Batteriewächter auf einer Platine aufgebracht.
 \newpage
 \renewcommand\refname{Literaturverzeichnis}
 \begin{thebibliography}{99} % Bibliography - this is intentionally simple in this template
 	\raggedright
 	
 	\bibitem{Prosys}
-	Prosys OPC UA Java SDK:
-	\newblock {\em Preisliste}
-	\newblock [online] Available at: https://downloads.prosysopc.com/opcua/Prosys\_OPC\_UA\_Java\_SDK\_Price\_List.pdf [Zugriff am 21.06.2016]
+
 
 \end{thebibliography}
 
