@@ -1,6 +1,7 @@
 # Documentation
 
-# Manual
+Manual
+---------------------
 The manual is a documentation on how the SBG-Controller can be put into operation. It is also available on the official website.
 
 
