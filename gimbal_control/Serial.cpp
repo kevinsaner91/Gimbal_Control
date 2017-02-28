@@ -7,7 +7,11 @@
 
 #include "Serial.h"
 #include <stdint.h>
-
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/select.h>
 
 Serial::Serial(const char *uart_name_, int baudrate_) {
 	initialize_defaults();
@@ -28,11 +32,13 @@ void Serial::initialize_defaults() {
 	// Initialize attributes
 	debug = false;
 	fd = -1;
-	status = SERIAL_PORT_CLOSED
-	;
+	status = SERIAL_PORT_CLOSED;
 
 	uart_name = (char*) "/dev/ttyUSB0";
 	baudrate = 115200;
+
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 10000;
 
 	// Start mutex
 	int result = pthread_mutex_init(&lock, NULL);
@@ -52,12 +58,13 @@ void Serial::initialize_defaults() {
 int Serial::read_message() {
 
 	bool msgReceived = false;
-
+	result = 0;
 	// --------------------------------------------------------------------------
 	//   READ FROM PORT
 	// --------------------------------------------------------------------------
 
 	// this function locks the port during read
+
 	result = _read_port();
 
 	int validate = _validate(result);
@@ -69,16 +76,16 @@ int Serial::read_message() {
 	{
 		case 0:
 			printf("No Bytes to read available\n");
-			break;
+			return msgReceived;
 		case -1:
 			printf("The header checksum was incorrect\n");
-			break;
+			return msgReceived;
 		case -2:
 			printf("The body checksum was incorrect\n");
-			break;
+			return msgReceived;
 		case -3:
 			printf("The received data was not in the correct format\n");
-			break;
+			return msgReceived;
 		default:
 			msgReceived = true;
 	}
@@ -94,7 +101,6 @@ int Serial::write_message(char buf[]) {
 
 	// use default size length
 	int len = DEFAULT_COMMAND_SIZE;
-
 	// Write buffer to serial port, locks port while writing
 	int bytesWritten = _write_port(	buf, len);
 
@@ -116,6 +122,9 @@ int Serial::open_serial() {
 	printf("OPEN PORT\n");
 
 	fd = _open_port(uart_name);
+
+	FD_ZERO(&set);
+	FD_SET(fd, &set);
 
 	// Check success
 	if (fd == -1) {
@@ -176,7 +185,13 @@ void Serial::close_serial() {
 //   Convenience Functions
 // ------------------------------------------------------------------------------
 int Serial::start() {
-	return open_serial();
+	int success = open_serial();
+	if(success == 0){
+		printf("starting serial port successful");
+	}else{
+		printf("failed to start serial port");
+	}
+	return success;
 }
 
 void Serial::stop() {
@@ -376,17 +391,29 @@ bool Serial::_setup_port(int baud, int data_bits, int stop_bits, bool parity,
 //   Read Port with Lock
 // ------------------------------------------------------------------------------
 int Serial::_read_port() {
-	char buf[1000];
 
+	char buf[1000];
+	int bytesReceived;
 	// Lock
 	pthread_mutex_lock(&lock);
 
 	//returns the number of received bytes
-	int bytesReceived = read(fd, buf, 100);
 
-	for(int i = 0; i < 99; i++){
+	rv = select(fd +1, &set, NULL, NULL, &timeout);
+	if(rv == -1){
+		pthread_mutex_unlock(&lock); //this line of code is used to prevent a mutex deadlock
+		return 0;
+	}else if(rv == 0){
+		pthread_mutex_unlock(&lock);
+		return 0;
+	}else{
+		bytesReceived = read(fd, buf, 100);
+	}
+
+	for(uint16_t i = 0; i < 53; i++){
 		msg[i] = buf[i];
 	}
+
 
 	// Unlock
 	pthread_mutex_unlock(&lock);
@@ -404,6 +431,7 @@ int Serial::_write_port(char *buf, unsigned len) {
 
 	// Write packet via serial link
 	const int bytesWritten = static_cast<int>(write(fd, buf, len));
+
 
 	// Wait until all data has been written
 	tcdrain(fd);

@@ -11,10 +11,13 @@
 #include <cstdlib>
 #include <stdio.h>   // Standard input/output definitions
 #include <unistd.h>  // UNIX standard function definitions
-#include <fcntl.h>   // File control definitions
 #include <termios.h> // POSIX terminal control definitions
 #include <pthread.h> // This uses POSIX Threads
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h> 	// File control definitions
+#include <sys/select.h>
 
 #ifndef SERIAL_H_
 #define SERIAL_H_
@@ -31,6 +34,9 @@ public:
 	Serial();
 	virtual ~Serial();
 
+	fd_set set;
+	struct timeval timeout;
+	int rv;
 	bool debug;
 	const char *uart_name;
 	int  baudrate;
